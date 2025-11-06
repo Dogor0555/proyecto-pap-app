@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Import screens
 import AccessScreen from '../screens/auth/AccessScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
 import StudentDashboard from '../screens/student/StudentDashboard';
 import ChatScreen from '../screens/visitante/ChatScreen';
 import DiarioEmocionalScreen from '../screens/visitante/DiarioEmocionalScreen';
@@ -27,6 +28,7 @@ export default function AppNavigator() {
                 {/* Pantallas de Autenticación */}
                 <Stack.Screen name='Access' component={AccessScreen} />
                 <Stack.Screen name='Login' component={LoginScreen} />
+                <Stack.Screen name='Register' component={RegisterScreen} />
                 
                 {/* Dashboards Principales */}
                 <Stack.Screen name='VisitorDashboard' component={VisitorDashboard} />

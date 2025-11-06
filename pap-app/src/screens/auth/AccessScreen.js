@@ -1,23 +1,13 @@
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { useNavigation } from '@react-navigation/native';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
-import { Alert, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { auth } from '../../../firebase/config.js';
+import { Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const COLORS = {
     BACKGROUND: '#1E2B4B',   
     TEXT: 'white',           
     HIGHLIGHT: '#95E3E7',    
     SECONDARY: '#E74C7D',
+    SUCCESS: '#4CAF50'
 };
-
-// Configurar Google Sign-In
-GoogleSignin.configure({
-    webClientId: '888603960531-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com', // Reemplaza con tu Client ID
-    offlineAccess: true,
-    hostedDomain: '',
-    forceCodeForRefreshToken: true,
-});
 
 export default function AccessScreen() {
     const navigation = useNavigation();
@@ -30,34 +20,8 @@ export default function AccessScreen() {
         navigation.navigate('VisitorDashboard');
     };
 
-    const handleGoogleLogin = async () => {
-        try {
-            await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
-            
-            // Crear credencial de Google
-            const googleCredential = GoogleAuthProvider.credential(userInfo.idToken);
-            
-            // Sign in con Firebase
-            const userCredential = await signInWithCredential(auth, googleCredential);
-            
-            console.log('Usuario logueado con Google:', userCredential.user);
-            Alert.alert('¡Éxito!', `Bienvenido ${userInfo.user.name}`);
-            navigation.replace('StudentDashboard');
-            
-        } catch (error) {
-            console.error('Error Google Sign-In:', error);
-            
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                Alert.alert('Cancelado', 'Inicio de sesión cancelado');
-            } else if (error.code === statusCodes.IN_PROGRESS) {
-                Alert.alert('En progreso', 'Ya hay un inicio de sesión en progreso');
-            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                Alert.alert('Error', 'Google Play Services no disponible');
-            } else {
-                Alert.alert('Error', 'Error al iniciar sesión con Google');
-            }
-        }
+    const handleRegister = () => {
+        navigation.navigate('Register');
     };
 
     return (
@@ -73,7 +37,11 @@ export default function AccessScreen() {
                 </Text>
 
                 <Text style={styles.subtitle}>
-                    ¿Cómo quieres acceder?
+                    Primeros Auxilios Psicológicos
+                </Text>
+
+                <Text style={styles.description}>
+                    Tu bienestar emocional es nuestra prioridad
                 </Text>
                 
                 <View style={styles.buttonsContainer}>
@@ -83,7 +51,16 @@ export default function AccessScreen() {
                         onPress={handleStudentLogin}
                     >
                         <Text style={styles.buttonText}>Soy Estudiante</Text>
-                        <Text style={styles.buttonSubtext}>Iniciar sesión</Text>
+                        <Text style={styles.buttonSubtext}>Iniciar sesión con mi cuenta</Text>
+                    </TouchableOpacity>
+
+                    {/* Botón para registro */}
+                    <TouchableOpacity 
+                        style={[styles.button, styles.registerButton]}
+                        onPress={handleRegister}
+                    >
+                        <Text style={styles.buttonText}>Crear Cuenta</Text>
+                        <Text style={styles.buttonSubtext}>Registrarme como estudiante</Text>
                     </TouchableOpacity>
 
                     {/* Botón para visitantes */}
@@ -92,19 +69,14 @@ export default function AccessScreen() {
                         onPress={handleVisitorAccess}
                     >
                         <Text style={styles.buttonText}>Entrar como Visitante</Text>
-                        <Text style={styles.buttonSubtext}>Explorar la app</Text>
+                        <Text style={styles.buttonSubtext}>Explorar la app sin registro</Text>
                     </TouchableOpacity>
+                </View>
 
-                    {/* Botón Google */}
-                    <TouchableOpacity 
-                        style={[styles.button, styles.googleButton]}
-                        onPress={handleGoogleLogin}
-                    >
-                        <View style={styles.googleButtonContent}>
-                            <Text style={styles.googleIcon}>G</Text>
-                            <Text style={styles.googleButtonText}>Continuar con Google</Text>
-                        </View>
-                    </TouchableOpacity>
+                <View style={styles.infoContainer}>
+                    <Text style={styles.infoText}>
+                        💙 Tu salud mental es importante
+                    </Text>
                 </View>
 
             </View>
@@ -135,28 +107,36 @@ const styles = StyleSheet.create({
         fontWeight: '900', 
         color: COLORS.HIGHLIGHT, 
         textAlign: 'center',
-        marginBottom: 50,
+        marginBottom: 10,
     },
     subtitle: {
-        fontSize: 20,
+        fontSize: 18,
         color: COLORS.TEXT,
         textAlign: 'center',
-        marginBottom: 30,
+        marginBottom: 5,
+        opacity: 0.9,
+    },
+    description: {
+        fontSize: 16,
+        color: COLORS.HIGHLIGHT,
+        textAlign: 'center',
+        marginBottom: 40,
+        opacity: 0.8,
     },
     buttonsContainer: {
         width: '100%',
-        gap: 15,
+        gap: 12,
     },
     button: {
-        paddingVertical: 16,
+        paddingVertical: 18,
         paddingHorizontal: 20,
         borderRadius: 12,
         alignItems: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        elevation: 4,
     },
     studentButton: {
         backgroundColor: COLORS.HIGHLIGHT,
@@ -164,27 +144,8 @@ const styles = StyleSheet.create({
     visitorButton: {
         backgroundColor: COLORS.SECONDARY,
     },
-    googleButton: {
-        backgroundColor: 'white',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        marginTop: 10,
-    },
-    googleButtonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    googleIcon: {
-        backgroundColor: '#4285F4',
-        color: 'white',
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        textAlign: 'center',
-        lineHeight: 24,
-        fontWeight: 'bold',
-        marginRight: 10,
+    registerButton: {
+        backgroundColor: COLORS.SUCCESS,
     },
     buttonText: {
         color: COLORS.BACKGROUND,
@@ -194,12 +155,21 @@ const styles = StyleSheet.create({
     buttonSubtext: {
         color: COLORS.BACKGROUND,
         fontSize: 14,
-        opacity: 0.8,
-        marginTop: 2,
+        opacity: 0.9,
+        marginTop: 4,
     },
-    googleButtonText: {
-        color: '#333',
-        fontSize: 16,
-        fontWeight: 'bold',
-    }
+    infoContainer: {
+        marginTop: 30,
+        padding: 15,
+        backgroundColor: 'rgba(149, 227, 231, 0.1)',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(149, 227, 231, 0.3)',
+    },
+    infoText: {
+        color: COLORS.HIGHLIGHT,
+        fontSize: 14,
+        textAlign: 'center',
+        fontWeight: '500',
+    },
 });

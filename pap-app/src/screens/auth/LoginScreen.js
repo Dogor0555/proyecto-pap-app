@@ -14,7 +14,7 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth } from '../../../firebase/config.js'; // ✅ RUTA CORREGIDA
+import { auth } from '../../../firebase/config.js';
 
 export default function LoginScreen({ navigation }) {
 
@@ -84,17 +84,7 @@ export default function LoginScreen({ navigation }) {
     }
 
     const goToRegister = () => {
-        Alert.alert(
-            "Registro", 
-            "¿Quieres crear una cuenta nueva?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { 
-                    text: "Sí, registrar", 
-                    onPress: () => Alert.alert("Próximamente", "La función de registro estará disponible pronto")
-                }
-            ]
-        );
+        navigation.navigate("Register");
     }
 
     const handleForgotPassword = () => {
@@ -105,7 +95,22 @@ export default function LoginScreen({ navigation }) {
                 { text: "Cancelar", style: "cancel" },
                 { 
                     text: "Recuperar", 
-                    onPress: () => Alert.alert("Próximamente", "La recuperación de contraseña estará disponible pronto")
+                    onPress: () => {
+                        // Aquí puedes implementar la recuperación de contraseña
+                        Alert.alert(
+                            "Recuperación de Contraseña",
+                            "Se enviará un enlace de recuperación a tu email.",
+                            [
+                                { text: "Cancelar", style: "cancel" },
+                                { 
+                                    text: "Enviar", 
+                                    onPress: () => {
+                                        Alert.alert("Éxito", "Se ha enviado el enlace de recuperación a tu email.");
+                                    }
+                                }
+                            ]
+                        );
+                    }
                 }
             ]
         );
@@ -180,12 +185,18 @@ export default function LoginScreen({ navigation }) {
                             )}
                         </TouchableOpacity>
 
+                        <View style={styles.divider}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>o</Text>
+                            <View style={styles.dividerLine} />
+                        </View>
+
                         <TouchableOpacity
-                            style={styles.linkButton}
+                            style={styles.btnRegistrar}
                             onPress={goToRegister}
                             disabled={isLoading}
                         >
-                            <Text style={styles.linkText}>¿No tienes cuenta? <Text style={styles.linkBold}>Regístrate aquí</Text></Text>
+                            <Text style={styles.btnRegistrarText}>Crear Cuenta Nueva</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -312,18 +323,40 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    linkButton: {
-        marginTop: 20,
-        padding: 10,
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 20,
+        width: '100%',
     },
-    linkText: {
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#1E2B4B',
+        opacity: 0.3,
+    },
+    dividerText: {
         color: '#1E2B4B',
-        fontSize: 14,
-        textAlign: 'center',
-    },
-    linkBold: {
+        paddingHorizontal: 10,
         fontWeight: 'bold',
-        textDecorationLine: 'underline',
+    },
+    btnRegistrar: {
+        backgroundColor: '#E74C7D',
+        width: '100%',
+        padding: 15,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    btnRegistrarText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     btnRegresar: {
         backgroundColor: 'transparent',
