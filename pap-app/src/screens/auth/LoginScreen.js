@@ -1,4 +1,5 @@
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useState } from "react";
 import {
     ActivityIndicator,
@@ -11,10 +12,10 @@ import {
     TextInput,
     ToastAndroid,
     TouchableOpacity,
-    View
+    View 
 } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth } from '../../../firebase/config.js';
+import { db } from '../../../firebase/config';
 
 export default function LoginScreen({ navigation }) {
 
@@ -28,54 +29,86 @@ export default function LoginScreen({ navigation }) {
 
     const login = async () => {
         if(isLoading){
-            alert("Espere, ya hay una petición en proceso...")
-            return
+            Alert.alert("Espere", "Ya hay una petición en proceso...");
+            return;
         }
 
         if (!email || !password) {
-            alert("Debe llenar todos los campos")
-            return
+            Alert.alert("Error", "Debe llenar todos los campos");
+            return;
         }
 
-        // Validación básica de email
         if (!email.includes('@')) {
-            alert("Por favor ingresa un email válido")
-            return
+            Alert.alert("Error", "Por favor ingresa un email válido");
+            return;
         }
 
         setIsLoading(true);
+        
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            console.log('Usuario logueado:', userCredential.user);
+            console.log('🔄 Buscando usuario en Firestore...');
             
-            setIsLoading(false);
-            Platform.OS !== 'ios' && showToast();
-            navigation.replace("StudentDashboard");
-        } catch (error) {
-            console.error('Error de login:', error);
-            setIsLoading(false);
+            const q = query(collection(db, 'usuarios'), where('email', '==', email));
+            const querySnapshot = await getDocs(q);
             
-            let errorMessage = "Error de inicio de sesión";
-            switch (error.code) {
-                case 'auth/invalid-email':
-                    errorMessage = "El formato del email es inválido";
-                    break;
-                case 'auth/user-not-found':
-                    errorMessage = "No existe una cuenta con este email";
-                    break;
-                case 'auth/wrong-password':
-                    errorMessage = "Contraseña incorrecta";
-                    break;
-                case 'auth/too-many-requests':
-                    errorMessage = "Demasiados intentos fallidos. Intente más tarde";
-                    break;
-                case 'auth/network-request-failed':
-                    errorMessage = "Error de conexión. Verifica tu internet";
-                    break;
-                default:
-                    errorMessage = "Error al iniciar sesión. Intenta nuevamente";
+            if (!querySnapshot.empty) {
+                const userDoc = querySnapshot.docs[0];
+                const userData = userDoc.data();
+                
+                console.log('✅ Usuario encontrado:', userData.nombre);
+                
+                if (userData.password === password) {
+                    console.log('✅ Contraseña correcta');
+                    
+                    await AsyncStorage.setItem('userToken', 'pap-app-token');
+                    await AsyncStorage.setItem('userId', userDoc.id);
+                    await AsyncStorage.setItem('userName', userData.nombre);
+                    await AsyncStorage.setItem('userEmail', userData.email);
+                    await AsyncStorage.setItem('userMatricula', userData.matricula);
+                    await AsyncStorage.setItem('userCarrera', userData.carrera || 'No especificada');
+                    await AsyncStorage.setItem('userData', JSON.stringify(userData));
+                    
+                    console.log('✅ Datos guardados en AsyncStorage');
+                    
+                    setIsLoading(false);
+                    
+                    Platform.OS !== 'ios' && showToast();
+                    
+                    Alert.alert(
+                        "¡Bienvenido! 👋",
+                        `Hola ${userData.nombre}, has iniciado sesión correctamente.`,
+                        [
+                            {
+                                text: "Continuar",
+                                onPress: () => navigation.replace("StudentDashboard")
+                            }
+                        ]
+                    );
+                    
+                } else {
+                    console.log('❌ Contraseña incorrecta');
+                    setIsLoading(false);
+                    Alert.alert("Error", "Contraseña incorrecta");
+                }
+            } else {
+                console.log('❌ Usuario no encontrado');
+                setIsLoading(false);
+                Alert.alert("Error", "No existe una cuenta con este email");
             }
-            Alert.alert("Error", errorMessage);
+            
+        } catch (error) {
+            console.error('❌ Error en login:', error);
+            setIsLoading(false);
+            
+            let errorMessage = "Error al iniciar sesión";
+            
+            if (error.code === 'permission-denied') {
+                errorMessage = "Error de permisos en la base de datos";
+            } else if (error.message.includes('network') || error.message.includes('Internet')) {
+                errorMessage = "Error de conexión. Verifica tu internet";
+            }
+            
+            Alert.alert("Error", `${errorMessage}: ${error.message}`);
         }
     }
 
@@ -96,7 +129,6 @@ export default function LoginScreen({ navigation }) {
                 { 
                     text: "Recuperar", 
                     onPress: () => {
-                        // Aquí puedes implementar la recuperación de contraseña
                         Alert.alert(
                             "Recuperación de Contraseña",
                             "Se enviará un enlace de recuperación a tu email.",
@@ -118,49 +150,63 @@ export default function LoginScreen({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            {isLoading && (
-                <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color="#ffffff" />
-                    <Text style={styles.loadingText}>Iniciando sesión...</Text>
-                </View>
-            )}
-
             <KeyboardAvoidingView 
-                style={styles.keyboardAvoid}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardView}
             >
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.viewTitles}>
-                        <Text style={styles.titleText}>Iniciar Sesión</Text>
-                        <Text style={styles.subtitleText}>Estudiante USO</Text>
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {isLoading && (
+                        <View style={styles.loadingOverlay}>
+                            <ActivityIndicator size="large" color="#ffffff" />
+                            <Text style={styles.loadingText}>Iniciando sesión...</Text>
+                        </View>
+                    )}
+
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <Text style={styles.heartIcon}>💙</Text>
+                        <Text style={styles.appTitle}>PAP-USO</Text>
+                        <Text style={styles.appSubtitle}>Primeros Auxilios Psicológicos</Text>
                     </View>
 
-                    <View style={styles.formCard}>
+                    {/* Form Container */}
+                    <View style={styles.formContainer}>
+                        <Text style={styles.screenTitle}>Iniciar Sesión</Text>
+                        <Text style={styles.screenSubtitle}>Estudiante USO</Text>
                         
-                        <Text style={styles.inputLabel}>Email</Text>
-                        <TextInput
-                            placeholder="usuario@uso.edu.co"
-                            placeholderTextColor="rgba(0, 0, 0, 0.4)"
-                            style={styles.input}
-                            onChangeText={setEmail}
-                            value={email}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                            autoComplete="email"
-                            editable={!isLoading}
-                        />
-                        
-                        <Text style={styles.inputLabel}>Contraseña</Text>
-                        <TextInput
-                            placeholder="********"
-                            placeholderTextColor="rgba(0, 0, 0, 0.4)"
-                            style={styles.input}
-                            onChangeText={setPassword}
-                            value={password}
-                            secureTextEntry={true}
-                            autoComplete="password"
-                            editable={!isLoading}
-                        />
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Email Institucional</Text>
+                            <TextInput
+                                placeholder="usuario@uso.edu.co"
+                                placeholderTextColor="#888"
+                                style={styles.input}
+                                onChangeText={setEmail}
+                                value={email}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                                editable={!isLoading}
+                                returnKeyType="next"
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Contraseña</Text>
+                            <TextInput
+                                placeholder="••••••••"
+                                placeholderTextColor="#888"
+                                style={styles.input}
+                                onChangeText={setPassword}
+                                value={password}
+                                secureTextEntry={true}
+                                editable={!isLoading}
+                                returnKeyType="done"
+                                onSubmitEditing={login}
+                            />
+                        </View>
 
                         <TouchableOpacity 
                             style={styles.forgotPassword}
@@ -171,15 +217,12 @@ export default function LoginScreen({ navigation }) {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[
-                                styles.btnAcceder,
-                                isLoading && styles.btnDisabled
-                            ]}
+                            style={[styles.btnAcceder, isLoading && styles.btnDisabled]}
                             onPress={login}
                             disabled={isLoading}
                         >
                             {isLoading ? (
-                                <ActivityIndicator size="small" color="#ffffff" />
+                                <ActivityIndicator size="small" color="#FFF" />
                             ) : (
                                 <Text style={styles.btnAccederText}>Acceder</Text>
                             )}
@@ -198,18 +241,17 @@ export default function LoginScreen({ navigation }) {
                         >
                             <Text style={styles.btnRegistrarText}>Crear Cuenta Nueva</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={goToAccess}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.backButtonText}>← Regresar al Inicio</Text>
+                        </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity
-                        style={[
-                            styles.btnRegresar,
-                            isLoading && styles.btnDisabled
-                        ]}
-                        onPress={goToAccess}
-                        disabled={isLoading}
-                    >
-                        <Text style={styles.btnRegresarText}>← Regresar</Text>
-                    </TouchableOpacity>
+                    <View style={styles.bottomSpace} />
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -221,17 +263,16 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#1E2B4B',
     },
-    keyboardAvoid: {
+    keyboardView: {
         flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
-        justifyContent: 'center',
-        paddingTop: Platform.OS === 'android' ? 25 : 0,
+        paddingVertical: 10,
     },
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(30, 43, 75, 0.9)',
+        backgroundColor: 'rgba(30, 43, 75, 0.95)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
@@ -240,94 +281,111 @@ const styles = StyleSheet.create({
         color: 'white',
         marginTop: 10,
         fontSize: 16,
+        fontWeight: 'bold',
     },
-    viewTitles: {
+    header: {
         alignItems: 'center',
-        paddingVertical: 30,
-        backgroundColor: '#1E2B4B',
+        marginTop: Platform.OS === 'ios' ? 30 : 20,
+        marginBottom: 20,
         paddingHorizontal: 20,
     },
-    titleText: {
+    heartIcon: {
+        fontSize: 40,
+        marginBottom: 8,
+    },
+    appTitle: {
         fontSize: 28,
-        color: 'white',
+        color: '#FFF',
         fontWeight: 'bold',
-        textAlign: 'center',
+        marginBottom: 4,
     },
-    subtitleText: {
-        fontSize: 18,
+    appSubtitle: {
+        fontSize: 14,
         color: '#95E3E7',
-        marginTop: 5,
+        fontWeight: '500',
         textAlign: 'center',
     },
-    formCard: {
-        backgroundColor: '#95E3E7',
-        marginHorizontal: 20,
-        padding: 30,
-        borderRadius: 20,
+    formContainer: {
+        backgroundColor: 'rgba(149, 227, 231, 0.95)',
+        borderRadius: 18,
+        padding: 22,
+        marginHorizontal: 18,
+        marginBottom: 10,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
         elevation: 5,
-        alignItems: 'center',
+    },
+    screenTitle: {
+        fontSize: 24,
+        color: '#1E2B4B',
+        fontWeight: 'bold',
+        marginBottom: 6,
+        textAlign: 'center',
+    },
+    screenSubtitle: {
+        fontSize: 14,
+        color: '#1E2B4B',
+        marginBottom: 22,
+        textAlign: 'center',
+        opacity: 0.8,
+    },
+    inputContainer: {
+        marginBottom: 16,
     },
     inputLabel: {
-        fontSize: 16,
-        fontWeight: 'bold',
         color: '#1E2B4B',
-        marginTop: 20,
-        marginBottom: 5,
-        alignSelf: 'flex-start',
-        width: '100%',
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginBottom: 6,
+        marginLeft: 4,
     },
     input: {
-        width: '100%',
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        borderBottomWidth: 1.5,
-        borderBottomColor: '#1E2B4B',
-        backgroundColor: 'transparent',
-        fontSize: 16,
-        color: '#000',
-        borderRadius: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 10,
+        padding: 14,
+        color: '#1E2B4B',
+        fontSize: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(30, 43, 75, 0.3)',
     },
     forgotPassword: {
         alignSelf: 'flex-end',
-        marginTop: 10,
-        padding: 5,
+        marginBottom: 18,
+        padding: 4,
     },
     forgotPasswordText: {
         color: '#1E2B4B',
-        fontSize: 14,
+        fontSize: 13,
         textDecorationLine: 'underline',
+        fontWeight: '500',
     },
     btnAcceder: {
         backgroundColor: '#1E2B4B',
-        marginTop: 30,
-        width: '100%',
-        padding: 15,
         borderRadius: 10,
+        height: 50,
         justifyContent: 'center',
         alignItems: 'center',
+        marginBottom: 14,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.25,
         shadowRadius: 3,
         elevation: 3,
     },
     btnDisabled: {
-        opacity: 0.6,
+        opacity: 0.7,
     },
     btnAccederText: {
-        color: 'white',
-        fontSize: 18,
+        color: '#FFF',
+        fontSize: 16,
         fontWeight: 'bold',
     },
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 20,
-        width: '100%',
+        marginVertical: 16,
     },
     dividerLine: {
         flex: 1,
@@ -339,41 +397,39 @@ const styles = StyleSheet.create({
         color: '#1E2B4B',
         paddingHorizontal: 10,
         fontWeight: 'bold',
+        fontSize: 13,
     },
     btnRegistrar: {
         backgroundColor: '#E74C7D',
-        width: '100%',
-        padding: 15,
         borderRadius: 10,
+        height: 50,
         justifyContent: 'center',
         alignItems: 'center',
+        marginBottom: 14,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.25,
         shadowRadius: 3,
         elevation: 3,
     },
     btnRegistrarText: {
-        color: 'white',
-        fontSize: 16,
+        color: '#FFF',
+        fontSize: 15,
         fontWeight: 'bold',
     },
-    btnRegresar: {
-        backgroundColor: 'transparent',
-        marginTop: 20,
-        marginBottom: 40,
-        width: '70%',
-        padding: 12,
-        borderRadius: 10,
-        justifyContent: 'center',
+    backButton: {
         alignItems: 'center',
-        alignSelf: 'center',
+        padding: 14,
         borderWidth: 2,
-        borderColor: '#95E3E7',
+        borderColor: '#1E2B4B',
+        borderRadius: 10,
     },
-    btnRegresarText: {
-        color: '#95E3E7',
-        fontSize: 16,
+    backButtonText: {
+        color: '#1E2B4B',
+        fontSize: 14,
         fontWeight: 'bold',
+    },
+    bottomSpace: {
+        height: 20,
     },
 });
